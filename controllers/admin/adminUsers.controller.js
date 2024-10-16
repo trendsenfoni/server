@@ -1,6 +1,7 @@
 module.exports = (dbModel, adminSessionDoc, req) => new Promise(async (resolve, reject) => {
-
-
+  if (!['manager', 'developer'].includes(adminSessionDoc.role) && ['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    return reject(`permission denied`)
+  }
   switch (req.method) {
     case 'GET':
       if (req.params.param1 != undefined) {
@@ -27,7 +28,7 @@ module.exports = (dbModel, adminSessionDoc, req) => new Promise(async (resolve, 
 
 function getOne(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
-    dbModel.members
+    dbModel.adminUsers
       .findOne({ _id: req.params.param1 })
       .then(resolve)
       .catch(reject)
@@ -41,7 +42,7 @@ function getList(dbModel, adminSessionDoc, req) {
       page: req.getValue('page') || 1,
     }
     let filter = {}
-    dbModel.members.paginate(filter, options).then(resolve).catch(reject)
+    dbModel.adminUsers.paginate(filter, options).then(resolve).catch(reject)
   })
 }
 
@@ -49,7 +50,7 @@ function post(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
     let data = req.body || {}
     data._id = undefined
-    let newDoc = new dbModel.members(data)
+    let newDoc = new dbModel.adminUsers(data)
     if (!epValidateSync(newDoc, reject)) return
 
     newDoc.save().then(resolve).catch(reject)
@@ -62,7 +63,7 @@ function put(dbModel, adminSessionDoc, req) {
     let data = req.body || {}
     delete data._id
 
-    dbModel.members
+    dbModel.adminUsers
       .findOne({ _id: req.params.param1 })
       .then(doc => {
         if (doc) {
@@ -82,10 +83,9 @@ function put(dbModel, adminSessionDoc, req) {
 function deleteItem(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
     if (!req.params.param1) return reject(`param1 required`)
-
-    dbModel.members.removeOne(adminSessionDoc, { _id: req.params.param1 }).then(resolve).catch(err => {
-      console.log(err)
-      reject(err)
-    })
+    if (req.params.param1 == adminSessionDoc.adminUser) return reject(`you can not delete your own user`)
+    dbModel.adminUsers.removeOne(adminSessionDoc, { _id: req.params.param1 })
+      .then(resolve)
+      .catch(reject)
   })
 }

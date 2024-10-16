@@ -1,19 +1,19 @@
-module.exports = (dbModel, sessionDoc, req) => new Promise(async (resolve, reject) => {
+module.exports = (dbModel, adminSessionDoc, req) => new Promise(async (resolve, reject) => {
 	try {
-		if (!sessionDoc) {
+		if (!adminSessionDoc) {
 			return restError.session(req, reject)
 		}
 
 		switch (req.method) {
 			case 'GET':
-				getMyProfile(dbModel, sessionDoc, req).then(resolve).catch(reject)
+				getMyProfile(dbModel, adminSessionDoc, req).then(resolve).catch(reject)
 				break
 			case 'PUT':
 			case 'POST':
 				if (req.params.param1 == 'changePassword') {
-					changePassword(dbModel, sessionDoc, req).then(resolve).catch(reject)
+					changePassword(dbModel, adminSessionDoc, req).then(resolve).catch(reject)
 				} else {
-					updateMyProfile(dbModel, sessionDoc, req).then(resolve).catch(reject)
+					updateMyProfile(dbModel, adminSessionDoc, req).then(resolve).catch(reject)
 				}
 
 				break
@@ -26,7 +26,7 @@ module.exports = (dbModel, sessionDoc, req) => new Promise(async (resolve, rejec
 	}
 })
 
-function changePassword(dbModel, sessionDoc, req) {
+function changePassword(dbModel, adminSessionDoc, req) {
 	return new Promise(async (resolve, reject) => {
 		let oldPassword = req.getValue('oldPassword')
 		let newPassword = req.getValue('newPassword')
@@ -35,13 +35,15 @@ function changePassword(dbModel, sessionDoc, req) {
 		if (!oldPassword) return reject('old password required')
 		if (!newPassword) return reject('new password required')
 		if (newPassword.length < 8) return reject('password must be at least 8 characters')
-		let memberDoc = await dbModel.members.findOne({ _id: sessionDoc.member })
+		let adminDoc = await dbModel.adminUsers.findOne({ _id: adminSessionDoc.adminUser })
 
-		if ((memberDoc.password || '') != oldPassword) {
+		console.log('adminDoc.password:', adminDoc.password)
+		console.log('oldPassword:', oldPassword)
+		if ((adminDoc.password || '') != oldPassword) {
 			return reject(`incorrect old password`)
 		}
-		memberDoc.password = newPassword
-		memberDoc
+		adminDoc.password = newPassword
+		adminDoc
 			.save()
 			.then(() => resolve(`your password has been changed successfuly`))
 			.catch(reject)
@@ -49,33 +51,35 @@ function changePassword(dbModel, sessionDoc, req) {
 	})
 }
 
-function getMyProfile(dbModel, sessionDoc, req) {
+function getMyProfile(dbModel, adminSessionDoc, req) {
 	return new Promise(async (resolve, reject) => {
 		try {
-			let doc = await dbModel.members.findOne({ _id: sessionDoc.member })
+			dbModel.adminUsers
+				.findOne({ _id: adminSessionDoc.adminUser })
 				.select('-password')
+				.then(doc => {
+					if (!doc) return reject(`admin user not found`)
+					console.log(doc.toJSON())
+					let obj = Object.assign({}, doc.toJSON())
+					obj.session = {
+						sessionId: adminSessionDoc._id,
+						lang: adminSessionDoc.lang,
+						db: adminSessionDoc.db,
+						dbList: adminSessionDoc.dbList,
+					}
+					resolve(obj)
+				})
+				.catch(reject)
 
-			if (doc) {
-				let obj = doc.toJSON()
-				obj.session = {
-					sessionId: sessionDoc._id,
-					lang: sessionDoc.lang,
-					db: sessionDoc.db,
-					dbList: sessionDoc.dbList,
-				}
-
-				resolve(obj)
-			} else
-				reject('user not found')
 		} catch (err) {
 			reject(err)
 		}
 	})
 
 }
-function updateMyProfile(dbModel, sessionDoc, req) {
+function updateMyProfile(dbModel, adminSessionDoc, req) {
 	return new Promise(async (resolve, reject) => {
-		let doc = await dbModel.members.findOne({ _id: sessionDoc.member })
+		let doc = await dbModel.adminUsers.findOne({ _id: adminSessionDoc.adminUser })
 		if (!doc)
 			return reject('oturuma ait kullanıcı bulunamadı')
 		let data = req.body || {}
@@ -83,17 +87,14 @@ function updateMyProfile(dbModel, sessionDoc, req) {
 		delete data.password
 		delete data.role
 		delete data.passive
-		delete data.createdDate
-		delete data.modifiedDate
 		delete data.fullName
 
 		let newDoc = Object.assign(doc, data)
 		if (!epValidateSync(newDoc, reject)) return
 
-		newDoc.fullName = (doc.firstName || '') + ' ' + (doc.lastName || '')
 		newDoc.save()
 			.then((doc2) => {
-				doc2.populate('image')
+				// doc2.populate('image')
 				let obj = doc2.toJSON()
 				delete obj.password
 

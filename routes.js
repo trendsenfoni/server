@@ -14,7 +14,6 @@ module.exports = (app) => {
     next()
   })
 
-
   const apiWelcomeMessage = {
     message: process.env.RESTAPI_WELCOME,
     status: process.env.NODE_ENV || ''
@@ -34,6 +33,7 @@ module.exports = (app) => {
 
   authControllers(app, '/api/v1/auth/:func/:param1/:param2/:param3')
   sessionControllers(app, '/api/v1/session/:func/:param1/:param2/:param3')
+  adminAuthControllers(app, '/api/v1/admin/auth/:func/:param1/:param2/:param3')
   adminControllers(app, '/api/v1/admin/:func/:param1/:param2/:param3')
   s3Controllers(app, '/api/v1/s3/:func/:param1/:param2/:param3')
   repoControllers(app, '/api/v1/repo/:func/:param1/:param2/:param3')
@@ -50,6 +50,30 @@ module.exports = (app) => {
   })
 }
 
+function adminAuthControllers(app, route) {
+  setRoutes(app, route, (req, res, next) => {
+    const ctl = getController('/admin/auth', req.params.func)
+    let spam = spamCheck(req.IP)
+    if (!spam) {
+      if (ctl) {
+        ctl(req)
+          .then((data) => {
+            if (data == undefined) res.json({ success: true })
+            else if (data == null) res.json({ success: true })
+            else {
+              res.status(200).json({
+                success: true,
+                data: data,
+              })
+            }
+          })
+          .catch(next)
+      } else next()
+    } else {
+      next(`Suspicious login attempts. Try again after ${spam} seconds.`)
+    }
+  })
+}
 
 function authControllers(app, route) {
   setRoutes(app, route, (req, res, next) => {
@@ -175,11 +199,8 @@ function adminControllers(app, route) {
   setRoutes(app, route, (req, res, next) => {
     const ctl = getController('/admin', req.params.func)
     if (ctl) {
-      passport(req)
-        .then((sessionDoc) => {
-          if (!sessionDoc) {
-            return reject('Unauthorized operation. {token} is empty. Please log in again.')
-          }
+      adminPassport(req)
+        .then(sessionDoc => {
           ctl(db, sessionDoc, req)
             .then((data) => {
               if (data == undefined) res.json({ success: true })
@@ -319,11 +340,7 @@ function passport(req) {
                   sessionDoc.save()
                     .then(resolve)
                     .catch(reject)
-                  // sessionDoc.save().then(async sessionDoc => {
 
-                  //   sessionDoc.permissions = await permissions(sessionDoc)
-                  //   resolve(sessionDoc)
-                  // }).catch(reject)
                 }
               } else {
                 reject('session not found. login again.')
@@ -334,6 +351,42 @@ function passport(req) {
         .catch(reject)
     } else {
       reject('authorization failed. token is empty.')
+    }
+  })
+}
+
+function adminPassport(req) {
+  return new Promise((resolve, reject) => {
+    let admintoken = req.getValue('admintoken')
+    if (admintoken) {
+      admintoken = admintoken.split('ADMIN_')[1]
+      auth
+        .verify(admintoken)
+        .then(decoded => {
+          db.adminSessions
+            .findOne({ _id: decoded.sessionId })
+            .then((sessionDoc) => {
+
+              if (sessionDoc) {
+                if (sessionDoc.closed) {
+                  reject('session closed')
+                } else {
+                  sessionDoc.lastOnline = new Date()
+                  sessionDoc.lastIP = req.IP
+                  sessionDoc.save()
+                    .then(resolve)
+                    .catch(reject)
+
+                }
+              } else {
+                reject('admin session not found. login again.')
+              }
+            })
+            .catch(reject)
+        })
+        .catch(reject)
+    } else {
+      reject('authorization failed. admintoken is empty.')
     }
   })
 }
