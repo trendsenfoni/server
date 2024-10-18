@@ -30,7 +30,7 @@ function getList(dbModel, sessionDoc, req) {
       const ayarlar = await dbModel.settings.findOne({ member: sessionDoc.member })
       if (!ayarlar) return reject(`settings not found`)
       if (ayarlar.connector.connectionType == 'mssql') {
-        if (ayarlar.connector.mssql.mainApp == 'mikro_v16') {
+        if (ayarlar.connector.mssql.mainApp == 'mikro_v16' || ayarlar.connector.mssql.mainApp == 'mikro_v17') {
           mikroHelper.bestProductSalesProfit(dbModel, sessionDoc, ayarlar.connector, startDate, endDate, top)
             .then(async result => {
               resolve(result)
@@ -58,7 +58,7 @@ function getSummary(dbModel, sessionDoc, req) {
       const ayarlar = await dbModel.settings.findOne({ member: sessionDoc.member })
       if (!ayarlar) return reject(`settings not found`)
       if (ayarlar.connector.connectionType == 'mssql') {
-        if (ayarlar.connector.mssql.mainApp == 'mikro_v16') {
+        if (ayarlar.connector.mssql.mainApp == 'mikro_v16' || ayarlar.connector.mssql.mainApp == 'mikro_v17') {
           mikroHelper.kasaBakiyeleriOzet(dbModel, sessionDoc, ayarlar.connector, lastDate)
             .then(async result => {
               resolve(result)

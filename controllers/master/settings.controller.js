@@ -1,9 +1,6 @@
 const connectorAbi = require('../../lib/connectorAbi')
 module.exports = (dbModel, sessionDoc, req) =>
   new Promise(async (resolve, reject) => {
-    if (!['GET', 'PATCH'].includes(req.method) && !sessionDoc) {
-      return restError.session(req, reject)
-    }
 
     switch (req.method.toUpperCase()) {
       case 'GET':
@@ -97,8 +94,6 @@ function mssqlTest(dbModel, sessionDoc, req) {
       if (!mssql) return reject(`mssql required`)
 
       const query = `SELECT name, object_id, create_date FROM sys.objects WHERE type='U' ORDER BY name`
-
-      console.log('mssql:', mssql)
       connectorAbi
         .mssql(clientId, clientPass, mssql, query)
         .then(resolve)

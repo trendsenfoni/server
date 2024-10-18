@@ -1,13 +1,21 @@
-module.exports = (dbModel, adminSessionDoc, req) => new Promise(async (resolve, reject) => {
+const connectorAbi = require('../../lib/connectorAbi')
 
+module.exports = (dbModel, adminSessionDoc, req) => new Promise(async (resolve, reject) => {
 
   switch (req.method) {
     case 'GET':
       getOne(dbModel, adminSessionDoc, req).then(resolve).catch(reject)
 
       break
+    case 'POST':
     case 'PUT':
-      put(dbModel, adminSessionDoc, req).then(resolve).catch(reject)
+      if (req.params.param1 == 'connectorTest') {
+        connectorTest(dbModel, req).then(resolve).catch(reject)
+      } else if (req.params.param1 == 'mssqlTest') {
+        mssqlTest(dbModel, req).then(resolve).catch(reject)
+      } else {
+        save(dbModel, adminSessionDoc, req).then(resolve).catch(reject)
+      }
       break
     default:
       restError.method(req, reject)
@@ -39,7 +47,7 @@ function getOne(dbModel, adminSessionDoc, req) {
 }
 
 
-function put(dbModel, adminSessionDoc, req) {
+function save(dbModel, adminSessionDoc, req) {
   return new Promise(async (resolve, reject) => {
     if (!req.params.param1) return reject(`param1 required`)
     let data = req.body || {}
@@ -70,5 +78,49 @@ function put(dbModel, adminSessionDoc, req) {
 
       })
       .catch(reject)
+  })
+}
+
+
+
+function connectorTest(dbModel, req) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const clientId = req.getValue('clientId')
+      const clientPass = req.getValue('clientPass')
+      if (!clientId) return reject(`clientId required`)
+      if (!clientPass) return reject(`clientPass required`)
+      connectorAbi
+        .dateTime(clientId, clientPass)
+        .then(resolve)
+        .catch(reject)
+
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
+function mssqlTest(dbModel, req) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const clientId = req.getValue('clientId')
+      const clientPass = req.getValue('clientPass')
+
+      const mssql = req.body.mssql
+      if (!clientId) return reject(`clientId required`)
+      if (!clientPass) return reject(`clientPass required`)
+      if (!mssql) return reject(`mssql required`)
+
+      const query = `SELECT name, object_id, create_date FROM sys.objects WHERE type='U' ORDER BY name`
+
+      connectorAbi
+        .mssql(clientId, clientPass, mssql, query)
+        .then(resolve)
+        .catch(reject)
+
+    } catch (err) {
+      reject(err)
+    }
   })
 }
