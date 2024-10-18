@@ -19,7 +19,7 @@ module.exports = function (dbModel) {
       links: [{ type: String }],
       married: { type: Boolean, default: false },
       children: { type: Number, default: 0 },
-      passive: { type: Boolean, default: false, index: true, select: false },
+      passive: { type: Boolean, default: false, index: true },
 
     },
     { versionKey: false, timestamps: true }

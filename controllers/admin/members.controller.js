@@ -29,6 +29,7 @@ function getOne(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
     dbModel.members
       .findOne({ _id: req.params.param1 })
+      .select('_id username email phoneNumber password role title fullName firstName lastName gender dateOfBirth location image bio links married children passive')
       .then(resolve)
       .catch(reject)
   })
@@ -39,8 +40,14 @@ function getList(dbModel, adminSessionDoc, req) {
     let options = {
       limit: req.getValue('pageSize') || 10,
       page: req.getValue('page') || 1,
+
     }
     let filter = {}
+    if ((req.query.search || '').length >= 2) {
+      filter.$or = []
+      filter.$or.push({ fullName: { $regex: `.*${req.query.search}.*`, $options: "gi" } })
+      filter.$or.push({ email: { $regex: `.*${req.query.search}.*`, $options: "gi" } })
+    }
     dbModel.members.paginate(filter, options).then(resolve).catch(reject)
   })
 }
@@ -49,6 +56,14 @@ function post(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
     let data = req.body || {}
     data._id = undefined
+    if (!data.email) return reject(`email required`)
+    if (!data.username) {
+      data._id = new ObjectId()
+      data.username = data._id
+    }
+    if (!data.firstName) return reject(`first name required`)
+    if (!data.lastName) return reject(`last name required`)
+
     let newDoc = new dbModel.members(data)
     if (!epValidateSync(newDoc, reject)) return
 
