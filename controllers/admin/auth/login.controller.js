@@ -20,7 +20,6 @@ module.exports = (req) => new Promise(async (resolve, reject) => {
 	}
 	let password = req.getValue('password')
 	let deviceId = req.getValue('deviceId')
-	let role = req.getValue('role') || 'user'
 	let lang = req.getValue('language') || req.getValue('lang')
 	if (!password) return reject('password required')
 	let filter = { password: password }
@@ -35,15 +34,15 @@ module.exports = (req) => new Promise(async (resolve, reject) => {
 	const adminDoc = await db.adminUsers.findOne(filter)
 	if (!adminDoc) return reject(`login failed. admin User not found.`)
 	if (adminDoc.passive) return reject(`account is passive. please contact with administrators`)
-	const adminRoleList = adminDoc.role.split(',').map((role) => role.trim())
+	// const adminRoleList = adminDoc.role.split(',').map((role) => role.trim())
 
-	if (role != 'user' && !adminRoleList.includes(role)) return reject(`incorrect role`)
+	// if (role != 'user' && !adminRoleList.includes(role)) return reject(`incorrect role`)
 
-	saveAdminSession(adminDoc, role, req).then(resolve).catch(reject)
+	saveAdminSession(adminDoc, req).then(resolve).catch(reject)
 
 })
 
-async function saveAdminSession(adminDoc, role, req) {
+async function saveAdminSession(adminDoc, req) {
 	let deviceId = req.getValue('deviceId') || ''
 	let lang = req.getValue('lang') || ''
 	let oldAdminSessions = []
@@ -75,7 +74,7 @@ async function saveAdminSession(adminDoc, role, req) {
 				username: adminDoc.username,
 				email: adminDoc.email,
 				phoneNumber: adminDoc.phoneNumber,
-				role: role,
+				role: adminDoc.role,
 				deviceId: deviceId,
 				IP: req.IP || '',
 				lastIP: req.IP || '',

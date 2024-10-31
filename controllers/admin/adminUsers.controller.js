@@ -30,6 +30,7 @@ function getOne(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
     dbModel.adminUsers
       .findOne({ _id: req.params.param1 })
+      .select('_id username email phoneNumber password role title fullName firstName lastName gender dateOfBirth location image bio links married children passive')
       .then(resolve)
       .catch(reject)
   })
@@ -40,8 +41,14 @@ function getList(dbModel, adminSessionDoc, req) {
     let options = {
       limit: req.getValue('pageSize') || 10,
       page: req.getValue('page') || 1,
+
     }
     let filter = {}
+    if ((req.query.search || '').length >= 2) {
+      filter.$or = []
+      filter.$or.push({ fullName: { $regex: `.*${req.query.search}.*`, $options: "i" } })
+      filter.$or.push({ email: { $regex: `.*${req.query.search}.*`, $options: "i" } })
+    }
     dbModel.adminUsers.paginate(filter, options).then(resolve).catch(reject)
   })
 }
@@ -50,6 +57,15 @@ function post(dbModel, adminSessionDoc, req) {
   return new Promise((resolve, reject) => {
     let data = req.body || {}
     data._id = undefined
+    if (!data.email) return reject(`email required`)
+    if (!data.username) {
+      data._id = new ObjectId()
+      data.username = data._id
+    }
+    if (!data.firstName) return reject(`first name required`)
+    if (!data.lastName) return reject(`last name required`)
+    if ((data.password || '').length < 8) return reject(`password must be at least 8 characters long`)
+
     let newDoc = new dbModel.adminUsers(data)
     if (!epValidateSync(newDoc, reject)) return
 
@@ -62,6 +78,7 @@ function put(dbModel, adminSessionDoc, req) {
     if (!req.params.param1) return reject(`param1 required`)
     let data = req.body || {}
     delete data._id
+    if (data.password && data.password.length < 8) return reject(`password must be at least 8 characters long`)
 
     dbModel.adminUsers
       .findOne({ _id: req.params.param1 })

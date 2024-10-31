@@ -45,8 +45,8 @@ function getList(dbModel, adminSessionDoc, req) {
     let filter = {}
     if ((req.query.search || '').length >= 2) {
       filter.$or = []
-      filter.$or.push({ fullName: { $regex: `.*${req.query.search}.*`, $options: "gi" } })
-      filter.$or.push({ email: { $regex: `.*${req.query.search}.*`, $options: "gi" } })
+      filter.$or.push({ fullName: { $regex: `.*${req.query.search}.*`, $options: "i" } })
+      filter.$or.push({ email: { $regex: `.*${req.query.search}.*`, $options: "i" } })
     }
     dbModel.members.paginate(filter, options).then(resolve).catch(reject)
   })
@@ -63,6 +63,7 @@ function post(dbModel, adminSessionDoc, req) {
     }
     if (!data.firstName) return reject(`first name required`)
     if (!data.lastName) return reject(`last name required`)
+    if ((data.password || '').length < 8) return reject(`password must be at least 8 characters long`)
 
     let newDoc = new dbModel.members(data)
     if (!epValidateSync(newDoc, reject)) return
@@ -76,6 +77,7 @@ function put(dbModel, adminSessionDoc, req) {
     if (!req.params.param1) return reject(`param1 required`)
     let data = req.body || {}
     delete data._id
+    if (data.password && data.password.length < 8) return reject(`password must be at least 8 characters long`)
 
     dbModel.members
       .findOne({ _id: req.params.param1 })
