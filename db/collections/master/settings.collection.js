@@ -6,7 +6,7 @@ module.exports = function (dbModel) {
 			connector: {
 				clientId: { type: String, default: '', index: true },
 				clientPass: { type: String, default: '', index: true },
-				connectionType: { type: String, enum: ['mssql', 'mysql', 'pg', 'fs', 'excel'], default: 'mssql', index: true },
+				connectionType: { type: String, enum: ['mssql', 'mysql', 'pg', 'fs', 'excel', 'rest'], default: 'mssql', index: true },
 				mssql: {
 					server: { type: String, default: '' },
 					port: { type: Number, default: 1433 },
